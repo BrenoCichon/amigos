@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Role da Galera</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F439;</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>&#x1F389; Role da Galera</h1>
+<p class="subtitle">Selecione os roles e decida!</p>
+
+<div class="grid" id="grid">
+  <div class="card" data-value="Barigui">
+    <img class="card-img" src="https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=300&q=80" alt="Barigui">
+    <span class="nome">Barigui</span>
+    <span class="check">&#x2713;</span>
+  </div>
+  <div class="card" data-value="Pedrao">
+    <img class="card-img" src="pedrao.jpeg" alt="Pedrao">
+    <span class="nome">Pedrao</span>
+    <span class="check">&#x2713;</span>
+  </div>
+  <div class="card" data-value="Casa">
+    <img class="card-img" src="https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=300&q=80" alt="Casa">
+    <span class="nome">Casa</span>
+    <span class="check">&#x2713;</span>
+  </div>
+  <div class="card" data-value="Churrasco">
+    <img class="card-img" src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=300&q=80" alt="Churrasco">
+    <span class="nome">Churrasco</span>
+    <span class="check">&#x2713;</span>
+  </div>
+  <div class="card" data-value="Games">
+    <img class="card-img" src="https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=300&q=80" alt="Games">
+    <span class="nome">Games</span>
+    <span class="check">&#x2713;</span>
+  </div>
+  <div class="card" id="cardIdeias" data-value="ideias">
+    <img class="card-img" src="decidindo.webp" alt="Ideias">
+    <span class="nome">Ideias</span>
+    <span class="check">&#x2713;</span>
+  </div>
+</div>
+
+<button class="btn-decidir" id="decidirBtn">Decidir role &#x1F3B2;</button>
+
+<div id="roleta-wrap">
+  <div id="roleta-container">
+    <div id="roleta-fade-left"></div>
+    <div id="roleta-fade-right"></div>
+    <div id="roleta-track"></div>
+  </div>
+  <div id="resultado-roleta"></div>
+</div>
+
+<div id="chatbox">
+  <p>&#x1F4A1; Qual e a ideia?</p>
+  <textarea id="inputIdeia" placeholder="Escreva sua ideia aqui..."></textarea>
+  <button class="btn-enviar" id="btnEnviar">Enviar ideia</button>
+  <div id="ideias-lista"></div>
+</div>
+
+<script>
+var CARDS = {
+  Barigui:   { img: 'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=200&q=80' },
+  Pedrao:    { img: 'pedrao.jpeg' },
+  Casa:      { img: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=200&q=80' },
+  Churrasco: { img: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=200&q=80' },
+  Games:     { img: 'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=200&q=80' },
+  Ideias:    { img: 'decidindo.webp' }
+};
+
+var ITEM_W = 110;
+var girando = false;
+
+// ── toque universal: dispara fn uma vez por toque/click ──
+function onTap(el, fn) {
+  var touched = false;
+  el.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    touched = true;
+    fn();
+  }, { passive: false });
+  el.addEventListener('click', function() {
+    if (touched) { touched = false; return; }
+    fn();
+  });
+}
+
+// ── cards ──
+document.querySelectorAll('.card').forEach(function(card) {
+  onTap(card, function() {
+    card.classList.toggle('selected');
+    verificarIdeias();
+  });
+});
+
+function verificarIdeias() {
+  var ideiasSelecionadas = document.getElementById('cardIdeias').classList.contains('selected');
+  var totalSelecionados  = document.querySelectorAll('.card.selected').length;
+  document.getElementById('chatbox').style.display =
+    (ideiasSelecionadas && totalSelecionados === 1) ? 'block' : 'none';
+}
+
+// ── enviar ideia ──
+onTap(document.getElementById('btnEnviar'), function() {
+  var input = document.getElementById('inputIdeia');
+  var texto = input.value.trim();
+  if (!texto) return;
+  var item = document.createElement('div');
+  item.className = 'ideia-item';
+  item.textContent = texto;
+  document.getElementById('ideias-lista').appendChild(item);
+  input.value = '';
+});
+
+// ── decidir ──
+onTap(document.getElementById('decidirBtn'), girarRoleta);
+
+function getIdeias() {
+  return Array.from(document.querySelectorAll('.ideia-item')).map(function(el) { return el.textContent; });
+}
+
+function girarRoleta() {
+  if (girando) return;
+
+  var selecionados = Array.from(document.querySelectorAll('.card.selected'))
+    .map(function(c) { return c.getAttribute('data-value'); });
+
+  var wrap = document.getElementById('roleta-wrap');
+  var resultadoEl = document.getElementById('resultado-roleta');
+
+  if (selecionados.length === 0) {
+    wrap.style.display = 'block';
+    resultadoEl.innerHTML = '&#x1F634; Selecione pelo menos um role!';
+    return;
+  }
+
+  var pool = [];
+  selecionados.forEach(function(v) {
+    if (v === 'ideias') {
+      var ideias = getIdeias();
+      if (ideias.length > 0) {
+        ideias.forEach(function(ideia) { pool.push({ label: ideia, img: CARDS.Ideias.img }); });
+      } else {
+        pool.push({ label: 'Ideias', img: CARDS.Ideias.img });
+      }
+    } else {
+      var key = v.charAt(0).toUpperCase() + v.slice(1);
+      pool.push({ label: v, img: CARDS[key] ? CARDS[key].img : '' });
+    }
+  });
+
+  var winnerIdx = Math.floor(Math.random() * pool.length);
+  var winnerPos = 32;
+  var faixa = [];
+  for (var i = 0; i < 40; i++) {
+    faixa.push(i === winnerPos ? pool[winnerIdx] : pool[Math.floor(Math.random() * pool.length)]);
+  }
+
+  var track = document.getElementById('roleta-track');
+  track.style.transition = 'none';
+  track.style.transform = 'translateX(0)';
+  track.innerHTML = '';
+  faixa.forEach(function(item) {
+    var div = document.createElement('div');
+    div.className = 'roleta-item';
+    div.innerHTML = item.img
+      ? '<img src="' + item.img + '" alt="' + item.label + '"><span>' + item.label + '</span>'
+      : '<span style="font-size:1.8rem">&#x1F4A1;</span><span>' + item.label + '</span>';
+    track.appendChild(div);
+  });
+
+  wrap.style.display = 'block';
+  resultadoEl.textContent = '';
+
+  var containerW = document.getElementById('roleta-container').offsetWidth;
+  var finalX = -(winnerPos * ITEM_W - (Math.floor(containerW / 2) - Math.floor(ITEM_W / 2)));
+
+  setTimeout(function() {
+    girando = true;
+    document.getElementById('decidirBtn').disabled = true;
+
+    // som via Web Audio API
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      var ctx = new AudioCtx();
+      for (var c = 0; c < 80; c++) {
+        (function(i) {
+          var t = i / 80;
+          var delay = (t * t * t) * 5;
+          setTimeout(function() {
+            if (ctx.state === 'suspended') ctx.resume();
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(800 + Math.random() * 200, ctx.currentTime);
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.04);
+          }, delay * 1000);
+        })(c);
+      }
+    }
+
+    track.style.transition = 'transform 5s cubic-bezier(0.12, 0.8, 0.25, 1)';
+    track.style.transform = 'translateX(' + finalX + 'px)';
+
+    setTimeout(function() {
+      girando = false;
+      document.getElementById('decidirBtn').disabled = false;
+      track.querySelectorAll('.roleta-item')[winnerPos].classList.add('winner');
+      resultadoEl.innerHTML = '&#x1F3B2; Resultado: <strong>' + faixa[winnerPos].label + '</strong>!';
+    }, 5200);
+  }, 50);
+}
+</script>
+
+</body>
+</html>
